@@ -27,7 +27,7 @@ type Cpt struct {
 	ResidentProvider string
 }
 
-func structData() {
+func main() {
 	data := Request{
 		Em: Em{
 			Code:             "001",
@@ -86,8 +86,4 @@ func structData() {
 
 	_ = data
 	fmt.Println(dipper.Get(data2, "#.Code"))
-}
-
-func main() {
-	structData()
 }

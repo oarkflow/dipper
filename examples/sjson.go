@@ -3,8 +3,9 @@ package main
 import (
 	"fmt"
 
+	"github.com/oarkflow/json/sjson"
+
 	"github.com/oarkflow/dipper"
-	"github.com/oarkflow/dipper/sjson"
 )
 
 func main() {

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/oarkflow/dipper/sjson"
+	"github.com/oarkflow/json/sjson"
 )
 
 // setOption is a type used for special assignments in a set operation.
