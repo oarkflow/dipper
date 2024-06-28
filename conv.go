@@ -27,10 +27,6 @@ func Get(obj any, attribute string) (any, error) {
 	return defaultDipper.Get(obj, attribute)
 }
 
-func FilterSlice(obj any, field string, value []any) (any, error) {
-	return defaultDipper.FilterSlice(obj, field, value)
-}
-
 // GetMany returns a map with the values of the given obj attributes.
 // It works as Get(), but it takes a slice of attributes to return their
 // corresponding values. The returned map will have the same length as the

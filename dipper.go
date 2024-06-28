@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/oarkflow/dipper/sjson"
 )
 
 // setOption is a type used for special assignments in a set operation.
@@ -18,8 +20,8 @@ const (
 	// field is not a map value, the value will be zeroed (see Zero).
 	Delete          setOption = 1
 	SEPARATOR                 = "."
-	SLICE                     = "[]"
-	SEPARATOR_SLICE           = ".[]"
+	SLICE                     = "#"
+	SEPARATOR_SLICE           = ".#"
 )
 
 // Options defines the configuration of a Dipper instance.
@@ -57,7 +59,22 @@ func New(opts Options) *Dipper {
 //		    return err
 //		}
 func (d *Dipper) Get(obj any, attribute string) (any, error) {
-	return d.get(reflect.ValueOf(obj), attribute)
+	switch obj := obj.(type) {
+	case string:
+		rs := sjson.Get(obj, attribute)
+		if !rs.Exists() {
+			return nil, ErrNotFound
+		}
+		return rs.Value(), nil
+	case []byte:
+		rs := sjson.GetBytes(obj, attribute)
+		if !rs.Exists() {
+			return nil, ErrNotFound
+		}
+		return rs.Value(), nil
+	default:
+		return d.get(reflect.ValueOf(obj), attribute)
+	}
 }
 
 func (d *Dipper) get(value reflect.Value, attribute string) (any, error) {
@@ -106,114 +123,8 @@ func (d *Dipper) getSliceValues(value reflect.Value, attribute string) (any, err
 	default:
 		results = append(results, value.Interface())
 	}
-	
-	return results, nil
-}
 
-func (d *Dipper) FilterSlice(obj any, attribute string, search []any) (any, error) {
-	if !strings.Contains(attribute, d.slice) {
-		value, _, err := GetReflectValue(reflect.ValueOf(obj), attribute, d.separator, false)
-		if err != nil {
-			return nil, err
-		}
-		switch i := value.Interface().(type) {
-		case []any:
-			var values []any
-			for _, it := range i {
-				for _, s := range search {
-					if s == it {
-						values = append(values, it)
-					}
-				}
-			}
-			return values, nil
-		case []string:
-			var values []any
-			for _, it := range i {
-				for _, s := range search {
-					if s == it {
-						values = append(values, it)
-					}
-				}
-			}
-			return values, nil
-		case []float32:
-			var values []any
-			for _, it := range i {
-				for _, s := range search {
-					if s == it {
-						values = append(values, it)
-					}
-				}
-			}
-			return values, nil
-		case []float64:
-			var values []any
-			for _, it := range i {
-				for _, s := range search {
-					switch s := s.(type) {
-					case int:
-						if float64(s) == it {
-							values = append(values, it)
-						}
-					case float64:
-						if s == it {
-							values = append(values, it)
-						}
-					case float32:
-						if float64(s) == it {
-							values = append(values, it)
-						}
-					}
-					
-				}
-			}
-			return values, nil
-		}
-		return value.Interface(), nil
-	}
-	fields := strings.Split(attribute, d.slice)
-	left := fields[0]
-	right := fields[1]
-	value, _, err := GetReflectValue(reflect.ValueOf(obj), left, d.separator, false)
-	if err != nil {
-		return nil, err
-	}
-	var values []any
-	switch v := value.Interface().(type) {
-	case []map[string]any:
-		for _, vt := range v {
-			val, err := d.Get(vt, right)
-			if err != nil {
-				return nil, err
-			}
-			for _, t := range search {
-				if fmt.Sprintf("%v", val) == fmt.Sprintf("%v", t) {
-					values = append(values, vt)
-				}
-			}
-		}
-		return values, nil
-	case []any:
-		for _, vt := range v {
-			val, err := d.Get(vt, right)
-			if err != nil {
-				return nil, err
-			}
-			for _, t := range search {
-				if fmt.Sprintf("%v", val) == fmt.Sprintf("%v", t) {
-					values = append(values, vt)
-				}
-			}
-		}
-		return values, nil
-	default:
-		value, _, err := GetReflectValue(reflect.ValueOf(obj), attribute, d.separator, false)
-		if err != nil {
-			return nil, err
-		}
-		return value.Interface(), nil
-	}
+	return results, nil
 }
 
 // GetMany returns a map with the values of the given obj attributes.
@@ -230,7 +141,7 @@ func (d *Dipper) FilterSlice(obj any, attribute string, search []any) (any, erro
 //		}
 func (d *Dipper) GetMany(obj any, attributes []string) (Fields, error) {
 	m := make(Fields, len(attributes))
-	
+
 	for _, attr := range attributes {
 		if _, ok := m[attr]; !ok {
 			t, err := d.Get(obj, attr)
@@ -240,7 +151,7 @@ func (d *Dipper) GetMany(obj any, attributes []string) (Fields, error) {
 			m[attr] = t
 		}
 	}
-	
+
 	return m, nil
 }
 
@@ -261,21 +172,21 @@ func (d *Dipper) GetMany(obj any, attributes []string) (Fields, error) {
 //		}
 func (d *Dipper) Set(obj any, attribute string, new any) error {
 	var err error
-	
+
 	value := reflect.ValueOf(obj)
-	
+
 	if value.Kind() == reflect.Ptr {
 		value = value.Elem()
 	}
-	
+
 	var lastField string
 	value, lastField, err = GetReflectValue(value, attribute, d.separator, true)
 	if err != nil {
 		return err
 	}
-	
+
 	var optZero, optDelete bool
-	
+
 	var newValue reflect.Value
 	switch new {
 	case Zero:
@@ -288,7 +199,7 @@ func (d *Dipper) Set(obj any, attribute string, new any) error {
 			newValue = newValue.Elem()
 		}
 	}
-	
+
 	if value.Kind() == reflect.Map {
 		if !optZero && !optDelete {
 			mapValueType := value.Type().Elem()
@@ -296,7 +207,7 @@ func (d *Dipper) Set(obj any, attribute string, new any) error {
 				return ErrTypesDoNotMatch
 			}
 		}
-		
+
 		// Initialize map if needed
 		if value.IsNil() {
 			keyType := value.Type().Key()
@@ -304,7 +215,7 @@ func (d *Dipper) Set(obj any, attribute string, new any) error {
 			mapType := reflect.MapOf(keyType, valueType)
 			value.Set(reflect.MakeMapWithSize(mapType, 0))
 		}
-		
+
 		value.SetMapIndex(reflect.ValueOf(lastField), newValue)
 	} else {
 		if !optZero && !optDelete {
@@ -333,22 +244,22 @@ func GetReflectValue(value reflect.Value, attribute string, sep string, toSet bo
 	if attribute == "" {
 		return value, "", nil
 	}
-	
+
 	if len(sep) == 0 {
 		sep = "."
 	}
-	
+
 	splitter := newAttributeSplitter(attribute, sep)
-	
+
 	var i, maxSetDepth int
 	if toSet {
 		maxSetDepth = splitter.CountRemaining() - 1
 	}
-	
+
 	for splitter.HasMore() {
 		fieldName, i = splitter.Next()
 		value = getElemSafe(value)
-		
+
 		switch value.Kind() {
 		case reflect.Map:
 			// Check that the map accept string keys
@@ -356,20 +267,20 @@ func GetReflectValue(value reflect.Value, attribute string, sep string, toSet bo
 			if keyKind != reflect.String && keyKind != reflect.Interface {
 				return value, "", ErrMapKeyNotString
 			}
-			
+
 			// If a map key has to be set, skip the last attribute and return the map
 			if toSet && i == maxSetDepth {
 				return value, fieldName, nil
 			}
-			
+
 			mapValue := value.MapIndex(reflect.ValueOf(fieldName))
 			if !mapValue.IsValid() {
 				fmt.Println(fieldName)
 				return value, "", ErrNotFound
 			}
-			
+
 			value = mapValue
-		
+
 		case reflect.Struct:
 			field, ok := value.Type().FieldByName(fieldName)
 			if !ok {
@@ -380,19 +291,19 @@ func GetReflectValue(value reflect.Value, attribute string, sep string, toSet bo
 			if field.PkgPath != "" {
 				return value, "", ErrUnexported
 			}
-			
+
 			value = value.FieldByName(fieldName)
-		
+
 		case reflect.Slice, reflect.Array:
 			// Ignores field if it is the first one and it is empty. This
 			// happens when using brackets on a root slice (e.g. "[1].Name").
 			if i == 0 && fieldName == "" {
 				break
 			}
-			
+
 			if strings.HasPrefix(fieldName, "[") && strings.HasSuffix(fieldName, "]") {
 				fieldName = fieldName[1 : len(fieldName)-1]
-				
+
 				// Try to apply the filter to the slice elements
 				foundValue, err := filterSlice(value, fieldName)
 				if err != nil {
@@ -403,7 +314,7 @@ func GetReflectValue(value reflect.Value, attribute string, sep string, toSet bo
 					break
 				}
 			}
-			
+
 			sliceIndex, err := strconv.Atoi(fieldName)
 			if err != nil {
 				return value, "", ErrInvalidIndex
@@ -413,12 +324,12 @@ func GetReflectValue(value reflect.Value, attribute string, sep string, toSet bo
 			}
 			field := value.Index(sliceIndex)
 			value = field
-		
+
 		default:
 			return value, "", ErrNotFound
 		}
 	}
-	
+
 	return value, fieldName, nil
 }
 
