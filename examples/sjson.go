@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/oarkflow/json/sjson"
@@ -101,7 +102,13 @@ func test() {
 }
 
 func test2() {
-	result, err := dipper.Get(requestData2, "coding.#.details.cpt.#.code")
+	var data map[string]any
+	err := json.Unmarshal(requestData2, &data)
+	if err != nil {
+		panic(err)
+	}
+
+	result, err := dipper.Get(data, "coding.#.details.cpt.#.code")
 	if err != nil {
 		panic(err)
 	}

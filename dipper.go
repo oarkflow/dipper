@@ -1,6 +1,7 @@
 package dipper
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -44,6 +45,70 @@ func New(opts Options) *Dipper {
 	return &Dipper{separator: opts.Separator, slice: opts.Slice}
 }
 
+func getValueFromPattern(data reflect.Value, pattern string) (any, error) {
+	parts := strings.Split(pattern, SEPARATOR)
+	var result []any
+	err := traverse(data, parts, &result)
+	return result, err
+}
+
+func traverse(current reflect.Value, parts []string, result *[]any) error {
+	if !current.IsValid() {
+		return errors.New("invalid data")
+	}
+	if current.Kind() == reflect.Interface {
+		current = current.Elem()
+	}
+
+	if len(parts) == 0 {
+		*result = append(*result, current.Interface())
+		return nil
+	}
+
+	part := parts[0]
+	if part == SLICE {
+		if current.Kind() == reflect.Slice || current.Kind() == reflect.Array {
+			for i := 0; i < current.Len(); i++ {
+				err := traverse(current.Index(i), parts[1:], result)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	} else {
+		switch current.Kind() {
+		case reflect.Map:
+			if next := current.MapIndex(reflect.ValueOf(part)); next.IsValid() {
+				err := traverse(next, parts[1:], result)
+				if err != nil {
+					return err
+				}
+			} else {
+				return errors.New("invalid data")
+			}
+		case reflect.Struct:
+			if next := current.FieldByName(part); next.IsValid() {
+				err := traverse(next, parts[1:], result)
+				if err != nil {
+					return err
+				}
+			} else {
+				return errors.New("invalid data")
+			}
+		case reflect.Ptr:
+			if !current.IsNil() {
+				err := traverse(current.Elem(), parts, result)
+				if err != nil {
+					return err
+				}
+			} else {
+				return errors.New("data is empty")
+			}
+		}
+	}
+	return nil
+}
+
 // Get returns the value of the given obj attribute. The attribute uses some
 // delimiter-notation to allow accessing nested fields, slice elements or map
 // keys. Field names and key maps are case-sensitive.
@@ -78,30 +143,14 @@ func (d *Dipper) Get(obj any, attribute string) (any, error) {
 }
 
 func (d *Dipper) get(value reflect.Value, attribute string) (any, error) {
-	if strings.HasPrefix(attribute, SLICE) {
-		attribute = SEPARATOR + attribute
+	if strings.Contains(attribute, SLICE) {
+		return getValueFromPattern(value, attribute)
 	}
-	if strings.Contains(attribute, d.separator+SLICE+d.separator) {
-		// Handle nested slices
-		fields := strings.Split(attribute, d.separator+SLICE+d.separator)
-		left := fields[0]
-		right := fields[1]
-		val, _, err := GetReflectValue(value, left, d.separator, false)
-		if err != nil {
-			return nil, err
-		}
-		return d.getSliceValues(val, right)
-	} else if strings.HasPrefix(attribute, SEPARATOR_SLICE) {
-		// Handle top-level slice with a dot prefix
-		return d.getSliceValues(value, attribute[3:])
-	} else {
-		// Handle single field access
-		val, _, err := GetReflectValue(value, attribute, d.separator, false)
-		if err != nil {
-			return nil, err
-		}
-		return val.Interface(), nil
+	val, _, err := GetReflectValue(value, attribute, d.separator, false)
+	if err != nil {
+		return nil, err
 	}
+	return val.Interface(), nil
 }
 
 func (d *Dipper) getSliceValues(value reflect.Value, attribute string) (any, error) {
