@@ -9,43 +9,46 @@ import (
 )
 
 func main() {
-	test()
+	// test()
 	test2()
 }
 
 var requestData2 = []byte(`
 {
-    "patient": {
-        "dob": "2003-04-10"
-    },
-  "coding": [
-    {
-      "em": {
-          "code": "123",
-          "encounter_uid": 1,
-          "work_item_uid": 2,
-          "billing_provider": "Test provider",
-          "resident_provider": "Test Resident Provider"
-      },
-      "cpt": [
-          {
-              "code": "OBS011",
-              "billing_provider": "Test provider",
-              "resident_provider": "Test Resident Provider"
-          },
-          {
-              "code": "OBS011",
-              "billing_provider": "Test provider",
-              "resident_provider": "Test Resident Provider"
-          },
-          {
-              "code": "SU002",
-              "billing_provider": "Test provider",
-              "resident_provider": "Test Resident Provider"
-          }
-      ]
-    }
-  ]
+	"patient": {
+		"dob": "2003-04-10"
+	},
+	"coding": [
+		{
+			"dos": "2021-01-01",
+			"details": {
+				"em": {
+					"code": "123",
+					"encounter_uid": 1,
+					"work_item_uid": 2,
+					"billing_provider": "Test provider",
+					"resident_provider": "Test Resident Provider"
+				},
+				"cpt": [
+					{
+						"code": "OBS011",
+						"billing_provider": "Test provider",
+						"resident_provider": "Test Resident Provider"
+					},
+					{
+						"code": "OBS011",
+						"billing_provider": "Test provider",
+						"resident_provider": "Test Resident Provider"
+					},
+					{
+						"code": "SU002",
+						"billing_provider": "Test provider",
+						"resident_provider": "Test Resident Provider"
+					}
+				]
+			}
+		}
+	]
 }
 `)
 
@@ -98,7 +101,7 @@ func test() {
 }
 
 func test2() {
-	result, err := dipper.Get(reqData, "#.code")
+	result, err := dipper.Get(requestData2, "coding.#.details.cpt.#.code")
 	if err != nil {
 		panic(err)
 	}
