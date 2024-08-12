@@ -2,7 +2,6 @@ package dipper
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
@@ -19,10 +18,9 @@ const (
 	Zero setOption = 0
 	// Delete is used as the new value in Set() to delete a map key. If the
 	// field is not a map value, the value will be zeroed (see Zero).
-	Delete          setOption = 1
-	SEPARATOR                 = "."
-	SLICE                     = "#"
-	SEPARATOR_SLICE           = ".#"
+	Delete    setOption = 1
+	SEPARATOR           = "."
+	SLICE               = "#"
 )
 
 // Options defines the configuration of a Dipper instance.
@@ -324,7 +322,6 @@ func GetReflectValue(value reflect.Value, attribute string, sep string, toSet bo
 
 			mapValue := value.MapIndex(reflect.ValueOf(fieldName))
 			if !mapValue.IsValid() {
-				fmt.Println(fieldName)
 				return value, "", ErrNotFound
 			}
 
@@ -333,7 +330,6 @@ func GetReflectValue(value reflect.Value, attribute string, sep string, toSet bo
 		case reflect.Struct:
 			field, ok := value.Type().FieldByName(fieldName)
 			if !ok {
-				fmt.Println(fieldName)
 				return value, "", ErrNotFound
 			}
 			// Check if field is unexported (method IsExported() was introduced in Go 1.17)
