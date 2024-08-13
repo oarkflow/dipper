@@ -1,45 +1,24 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+
 	"github.com/oarkflow/dipper"
 )
 
 func main() {
-	data := map[string]any{
-		"patient": map[string]any{
-			"dob": "2003-04-10",
-		},
-		"coding": []any{
-			map[string]any{
-				"dos": "2021-01-01",
-				"details": map[string]any{
-					"em": map[string]any{
-						"code": "123",
-					},
-					"cpt": []any{
-						map[string]any{"code": "OBS011"},
-						map[string]any{"code": "OBS011"},
-						map[string]any{"code": "SU002"},
-					},
-				},
-			},
-			map[string]any{
-				"dos": "2021-01-02",
-				"details": map[string]any{
-					"em": map[string]any{
-						"code": "123",
-					},
-					"cpt": []any{
-						map[string]any{"code": "1OBS011"},
-						map[string]any{"code": "1OBS011"},
-						map[string]any{"code": "1SU002"},
-					},
-				},
-			},
-		},
+	var data map[string]any
+	content, err := os.ReadFile("data.json")
+	if err != nil {
+		panic(err)
+	}
+	err = json.Unmarshal(content, &data)
+	if err != nil {
+		panic(err)
 	}
 
-	// Use the custom Extract function
 	fmt.Println(dipper.Get(data, "coding.#.details.cpt.#.code"))
+	fmt.Println(dipper.Get(data, "coding.#.details.cpt.#.code", "coding.#.dos"))
 }

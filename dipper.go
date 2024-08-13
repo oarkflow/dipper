@@ -171,29 +171,6 @@ func (d *Dipper) get(obj any, attribute string, groupBy ...string) (any, error) 
 	return val.Interface(), nil
 }
 
-func (d *Dipper) getSliceValues(value reflect.Value, attribute string) (any, error) {
-	var results []any
-	switch value.Kind() {
-	case reflect.Slice, reflect.Array:
-		for i := 0; i < value.Len(); i++ {
-			elem := value.Index(i)
-			if attribute == "" || attribute == SLICE {
-				results = append(results, elem.Interface())
-			} else {
-				subVal, _, err := GetReflectValue(elem, attribute, d.separator, false)
-				if err != nil {
-					return nil, err
-				}
-				results = append(results, subVal.Interface())
-			}
-		}
-	default:
-		results = append(results, value.Interface())
-	}
-
-	return results, nil
-}
-
 // GetMany returns a map with the values of the given obj attributes.
 // It works as Dipper.Get(), but it takes a slice of attributes to return their
 // corresponding values. The returned map will have the same length as the
