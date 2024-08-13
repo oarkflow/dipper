@@ -2,6 +2,7 @@ package dipper
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
@@ -43,68 +44,84 @@ func New(opts Options) *Dipper {
 	return &Dipper{separator: opts.Separator, slice: opts.Slice}
 }
 
-func getValueFromPattern(data reflect.Value, pattern string) (any, error) {
-	parts := strings.Split(pattern, SEPARATOR)
-	var result []any
-	err := traverse(data, parts, &result)
-	return result, err
+func groupValues(dataSlice, groupSlice any) (any, error) {
+	vA := reflect.ValueOf(groupSlice)
+	vB := reflect.ValueOf(dataSlice)
+	if vA.Kind() != reflect.Slice || vB.Kind() != reflect.Slice {
+		fmt.Println("One or both of the variables are not slices")
+		return nil, errors.New("one or both of the variables are not slices")
+	}
+	if vA.Len() != vB.Len() {
+		fmt.Println("Slices have different lengths")
+		return nil, errors.New("slices have different lengths")
+	}
+	resultMap := make(map[string]any)
+	for i := 0; i < vA.Len(); i++ {
+		keyValue := vA.Index(i).Interface()
+		var key string
+		switch v := keyValue.(type) {
+		case string:
+			key = v
+		case int:
+			key = strconv.Itoa(v)
+		default:
+			key = fmt.Sprint(v)
+		}
+		value := vB.Index(i).Interface()
+		resultMap[key] = value
+	}
+	return resultMap, nil
 }
 
-func traverse(current reflect.Value, parts []string, result *[]any) error {
-	if !current.IsValid() {
-		return errors.New("invalid data")
+// extract function to retrieve data based on pattern
+func extract(data any, pattern string) any {
+	var results []any
+	segments := strings.Split(pattern, ".")
+	extractRecursive(data, segments, &results)
+	if len(results) > 0 {
+		return results[0]
 	}
-	if current.Kind() == reflect.Interface {
-		current = current.Elem()
-	}
+	return results
+}
 
-	if len(parts) == 0 {
-		*result = append(*result, current.Interface())
-		return nil
+// Extract function to retrieve data based on pattern
+func Extract(data any, pattern string, groupBy string) (any, error) {
+	if groupBy == "" {
+		return extract(data, pattern), nil
 	}
+	currentData := extract(data, pattern)
+	groupData := extract(data, groupBy)
+	return groupValues(currentData, groupData)
+}
 
-	part := parts[0]
-	if part == SLICE {
-		if current.Kind() == reflect.Slice || current.Kind() == reflect.Array {
-			for i := 0; i < current.Len(); i++ {
-				err := traverse(current.Index(i), parts[1:], result)
-				if err != nil {
-					return err
-				}
-			}
+// Recursive helper function to traverse data
+func extractRecursive(data any, segments []string, results *[]any) {
+	if len(segments) == 0 {
+		*results = append(*results, data)
+		return
+	}
+	currentSegment := segments[0]
+	remainingSegments := segments[1:]
+	switch currentData := data.(type) {
+	case map[string]any:
+		if nextData, exists := currentData[currentSegment]; exists {
+			extractRecursive(nextData, remainingSegments, results)
 		}
-	} else {
-		switch current.Kind() {
-		case reflect.Map:
-			if next := current.MapIndex(reflect.ValueOf(part)); next.IsValid() {
-				err := traverse(next, parts[1:], result)
-				if err != nil {
-					return err
+	case []any:
+		if currentSegment == "#" {
+			var group []any
+			for _, item := range currentData {
+				var itemResults []any
+				extractRecursive(item, remainingSegments, &itemResults)
+				if len(itemResults) > 0 {
+					group = append(group, itemResults...)
 				}
-			} else {
-				return errors.New("invalid data")
 			}
-		case reflect.Struct:
-			if next := current.FieldByName(part); next.IsValid() {
-				err := traverse(next, parts[1:], result)
-				if err != nil {
-					return err
-				}
-			} else {
-				return errors.New("invalid data")
-			}
-		case reflect.Ptr:
-			if !current.IsNil() {
-				err := traverse(current.Elem(), parts, result)
-				if err != nil {
-					return err
-				}
-			} else {
-				return errors.New("data is empty")
+			if len(group) > 0 {
+				*results = append(*results, group)
 			}
 		}
 	}
-	return nil
 }
 
 // Get returns the value of the given obj attribute. The attribute uses some
@@ -121,7 +138,7 @@ func traverse(current reflect.Value, parts []string, result *[]any) error {
 //		if err := Error(v); err != nil {
 //		    return err
 //		}
-func (d *Dipper) Get(obj any, attribute string) (any, error) {
+func (d *Dipper) Get(obj any, attribute string, groupBy ...string) (any, error) {
 	switch obj := obj.(type) {
 	case string:
 		rs := sjson.Get(obj, attribute)
@@ -136,15 +153,18 @@ func (d *Dipper) Get(obj any, attribute string) (any, error) {
 		}
 		return rs.Value(), nil
 	default:
-		return d.get(reflect.ValueOf(obj), attribute)
+		return d.get(obj, attribute, groupBy...)
 	}
 }
 
-func (d *Dipper) get(value reflect.Value, attribute string) (any, error) {
+func (d *Dipper) get(obj any, attribute string, groupBy ...string) (any, error) {
 	if strings.Contains(attribute, SLICE) {
-		return getValueFromPattern(value, attribute)
+		if len(groupBy) > 0 {
+			return Extract(obj, attribute, groupBy[0])
+		}
+		return Extract(obj, attribute, "")
 	}
-	val, _, err := GetReflectValue(value, attribute, d.separator, false)
+	val, _, err := GetReflectValue(reflect.ValueOf(obj), attribute, d.separator, false)
 	if err != nil {
 		return nil, err
 	}

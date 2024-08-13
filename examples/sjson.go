@@ -10,8 +10,8 @@ import (
 )
 
 func main() {
-	// test()
-	test2()
+	test()
+	// test2()
 }
 
 var requestData2 = []byte(`
@@ -24,27 +24,36 @@ var requestData2 = []byte(`
 			"dos": "2021-01-01",
 			"details": {
 				"em": {
-					"code": "123",
-					"encounter_uid": 1,
-					"work_item_uid": 2,
-					"billing_provider": "Test provider",
-					"resident_provider": "Test Resident Provider"
+					"code": "123"
 				},
 				"cpt": [
 					{
-						"code": "OBS011",
-						"billing_provider": "Test provider",
-						"resident_provider": "Test Resident Provider"
+						"code": "OBS011"
 					},
 					{
-						"code": "OBS011",
-						"billing_provider": "Test provider",
-						"resident_provider": "Test Resident Provider"
+						"code": "OBS011"
 					},
 					{
-						"code": "SU002",
-						"billing_provider": "Test provider",
-						"resident_provider": "Test Resident Provider"
+						"code": "SU002"
+					}
+				]
+			}
+		},
+		{
+			"dos": "2021-01-02",
+			"details": {
+				"em": {
+					"code": "123"
+				},
+				"cpt": [
+					{
+						"code": "1OBS011"
+					},
+					{
+						"code": "1OBS011"
+					},
+					{
+						"code": "1SU002"
 					}
 				]
 			}
@@ -82,22 +91,16 @@ func test() {
 		fmt.Println(dob.(string))
 	}
 
-	result = sjson.GetBytes(requestData2, "coding.#.em")
+	result = sjson.GetBytes(requestData2, "coding.#.details.cpt.#.code")
 	if result.Exists() {
 		em := result.Value()
 		fmt.Println(em)
 	}
 
-	result = sjson.GetBytes(requestData2, "coding.#.em.code")
+	result = sjson.GetBytes(requestData2, "coding.#.dos")
 	if result.Exists() {
-		code := result.Value()
-		fmt.Println(code)
-	}
-
-	result = sjson.GetBytes(requestData2, "coding.#.cpt.#.code")
-	if result.Exists() {
-		cpt := result.Value()
-		fmt.Println(cpt)
+		em := result.Value()
+		fmt.Println(em)
 	}
 }
 

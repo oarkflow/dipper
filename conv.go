@@ -23,8 +23,8 @@ type Fields map[string]any
 //	if err := Error(v); err != nil {
 //	    return err
 //	}
-func Get(obj any, attribute string) (any, error) {
-	return defaultDipper.Get(obj, attribute)
+func Get(obj any, attribute string, groupBy ...string) (any, error) {
+	return defaultDipper.Get(obj, attribute, groupBy...)
 }
 
 // GetMany returns a map with the values of the given obj attributes.
