@@ -70,20 +70,20 @@ func main() {
 		},
 		{
 			Code:             "OBS01",
-			EncounterUid:     1,
+			EncounterUid:     2,
 			WorkItemUid:      2,
 			BillingProvider:  "Test provider",
 			ResidentProvider: "Test Resident Provider",
 		},
 		{
 			Code:             "SU002",
-			EncounterUid:     1,
+			EncounterUid:     3,
 			WorkItemUid:      2,
 			BillingProvider:  "Test provider",
 			ResidentProvider: "Test Resident Provider",
 		},
 	}
 
-	_ = data
+	fmt.Println(dipper.Get(data, "Cpt.#.Code", "Cpt.EncounterUid"))
 	fmt.Println(dipper.Get(data2, "#.Code"))
 }

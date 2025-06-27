@@ -3,12 +3,11 @@ package dipper
 // attributeSplitter offers methods to iterate the substrings of a string
 // using a given separator.
 type attributeSplitter struct {
-	s            string
-	sep          string
-	index        int
-	hasMore      bool
-	scanIndex    int
-	prevBrackets bool
+	s         string
+	sep       string
+	index     int
+	hasMore   bool
+	scanIndex int
 }
 
 // newAttributeSplitter returns a new attributeSplitter instance.
@@ -28,63 +27,56 @@ func (s *attributeSplitter) Next() (string, int) {
 	if !s.hasMore {
 		return "", -1
 	}
-	
 	remain := s.s[s.scanIndex:]
+	sepLen := len(s.sep)
+	enclosure := 0
 	index := -1
-	enclosureCount := 0
-	t := len(remain) - len(s.sep) + 1
-	separatorLength := len(s.sep)
-	
-	for i := 0; i < t; i++ {
-		if remain[i] == '[' {
-			if !s.prevBrackets {
-				index = i
-				separatorLength = 0
-				s.prevBrackets = true
-				break
+
+	for i := 0; i <= len(remain)-sepLen; i++ {
+		switch remain[i] {
+		case '[':
+			enclosure++
+		case ']':
+			if enclosure > 0 {
+				enclosure--
 			}
-			enclosureCount++
-		} else if remain[i] == ']' {
-			enclosureCount--
-			s.prevBrackets = false
 		}
-		
-		if enclosureCount == 0 && remain[i:i+separatorLength] == s.sep {
+		if enclosure == 0 && sepLen > 0 && remain[i:i+sepLen] == s.sep {
 			index = i
 			break
 		}
 	}
-	
 	if index == -1 {
 		s.hasMore = false
-		return remain, s.index + 1
+		res := remain
+		s.index++
+		s.scanIndex = len(s.s)
+		return res, s.index
 	}
+	res := remain[:index]
 	s.index++
-	s.scanIndex += index + separatorLength
-	return remain[:index], s.index
+	s.scanIndex += index + sepLen
+	return res, s.index
 }
 
 // CountRemaining returns the number of remaining fields in the string.
 func (s *attributeSplitter) CountRemaining() int {
 	remain := s.s[s.scanIndex:]
+	sepLen := len(s.sep)
+	enclosure := 0
 	count := 0
-	enclosureCount := 0
-	t := len(remain) - len(s.sep) + 1
-	separatorLength := len(s.sep)
-	
-	for i := 0; i < t; i++ {
-		if remain[i] == '[' {
-			enclosureCount++
-			count++
-			continue
-		} else if remain[i] == ']' {
-			enclosureCount--
+	for i := 0; i <= len(remain)-sepLen; i++ {
+		switch remain[i] {
+		case '[':
+			enclosure++
+		case ']':
+			if enclosure > 0 {
+				enclosure--
+			}
 		}
-		
-		if enclosureCount == 0 && remain[i:i+separatorLength] == s.sep {
+		if enclosure == 0 && sepLen > 0 && remain[i:i+sepLen] == s.sep {
 			count++
 		}
 	}
-	
 	return count + 1
 }
